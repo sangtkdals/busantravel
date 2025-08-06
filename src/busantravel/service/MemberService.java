@@ -15,4 +15,9 @@ public class MemberService {
 		}
 		return MemberDAO.register(id, name, pw, email);
 	}
+	
+	//ID로 이름 찾기
+	public static String getNameById(String id) {
+		return MemberDAO.getNameById(id);
+	}
 }

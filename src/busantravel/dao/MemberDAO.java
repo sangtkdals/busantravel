@@ -80,4 +80,28 @@ public class MemberDAO {
 		}
 		return duplicated;
 	}
+	
+	public static String getNameById(String id) {
+		Connection con = null;
+		PreparedStatement pstmt = null;
+		ResultSet rs = null;
+		String sql = null;
+		String name = null;
+		try {
+			con = pool.getConnection();
+			sql = "SELECT M_NAME FROM MEMBER WHERE M_ID = ?";
+			pstmt = con.prepareStatement(sql);
+			pstmt.setString(1, id);
+			rs = pstmt.executeQuery();
+			if (rs.next()) {
+				name = rs.getString("M_NAME");
+			}
+		} catch (Exception e) {
+			e.printStackTrace();
+		} finally {
+			pool.freeConnection(con, pstmt, rs);
+		}
+		
+		return name;
+	}
 }

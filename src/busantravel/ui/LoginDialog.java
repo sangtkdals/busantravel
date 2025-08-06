@@ -1,10 +1,19 @@
 package busantravel.ui;
 
 import javax.swing.*;
+
+import busantravel.controller.LoginController;
+
 import java.awt.*;
 
 public class LoginDialog {
     private JFrame parent;
+    private JTextField idField;
+    private JTextField pwField;
+    private JLabel idLabel;
+    private JLabel pwLabel;
+    private JButton loginBtn;
+    private JButton cancelBtn;
 
     public LoginDialog(JFrame parent) {
         this.parent = parent;
@@ -17,11 +26,11 @@ public class LoginDialog {
         loginDialog.setLayout(new GridLayout(3, 2, 15, 15)); // 행/열 간격 조정
         loginDialog.getContentPane().setBackground(Color.WHITE); // 배경색
 
-        JTextField idField = new JTextField();
-        JPasswordField pwField = new JPasswordField();
+        idField = new JTextField();
+        pwField = new JPasswordField();
 
         // 라벨 및 필드 추가
-        JLabel idLabel = new JLabel("아이디:");
+        idLabel = new JLabel("아이디:");
         idLabel.setFont(new Font("맑은 고딕", Font.PLAIN, 14));
         JLabel pwLabel = new JLabel("비밀번호:");
         pwLabel.setFont(new Font("맑은 고딕", Font.PLAIN, 14));
@@ -31,8 +40,8 @@ public class LoginDialog {
         loginDialog.add(pwLabel);
         loginDialog.add(pwField);
 
-        JButton loginBtn = new JButton("로그인");
-        JButton cancelBtn = new JButton("취소");
+        loginBtn = new JButton("로그인");
+        cancelBtn = new JButton("취소");
 
         // 버튼 스타일 설정
         loginBtn.setBackground(new Color(222, 146, 124));
@@ -41,20 +50,9 @@ public class LoginDialog {
         cancelBtn.setBackground(new Color(240, 240, 240));
         cancelBtn.setForeground(new Color(50, 50, 50));
         cancelBtn.setFocusPainted(false);
-
-        loginBtn.addActionListener(e -> {
-            // 실제 로그인 로직 (서버 연동 등)은 추후 구현
-            String id = idField.getText();
-            String pw = new String(pwField.getPassword());
-            if (id.isEmpty() || pw.isEmpty()) {
-                JOptionPane.showMessageDialog(loginDialog, "아이디와 비밀번호를 입력해주세요.", "로그인 오류", JOptionPane.WARNING_MESSAGE);
-            } else if (id.equals("test") && pw.equals("1234")) { // 예시
-                JOptionPane.showMessageDialog(loginDialog, "로그인 성공!");
-                loginDialog.dispose();
-            } else {
-                JOptionPane.showMessageDialog(loginDialog, "아이디 또는 비밀번호가 올바르지 않습니다.", "로그인 오류", JOptionPane.ERROR_MESSAGE);
-            }
-        });
+        
+        LoginController controller = new LoginController(this, loginDialog);
+        loginBtn.addActionListener(e -> controller.handleLogin());
 
         cancelBtn.addActionListener(e -> loginDialog.dispose());
 
@@ -62,5 +60,13 @@ public class LoginDialog {
         loginDialog.add(cancelBtn);
 
         loginDialog.setVisible(true);
+    }
+    
+    public String getId() {
+    	return idField.getText();
+    }
+    
+    public String getPw() {
+    	return pwField.getText();
     }
 }
