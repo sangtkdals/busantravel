@@ -8,6 +8,7 @@ public class Examples {
     	ApiHandler apiHandler = new ApiHandler();
         String apiKey = "AIzaSyAVurerb2PXQ7VU7djEjeK3bgD9kCwwT-I";
 
+        
         // --- 1. 자동 완성 ---
         System.out.println("--- 1. 장소 자동 완성 ---");
         String searchInput = "롯데월드";
