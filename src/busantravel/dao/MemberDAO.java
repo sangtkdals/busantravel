@@ -5,36 +5,43 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 
 import busantravel.db.DBConnectionMgr;
+import busantravel.model.Member;
 
 public class MemberDAO {
 	static DBConnectionMgr pool= DBConnectionMgr.getInstance();
 	
-	public static boolean loginCheck(String id, String pw) {
+	// id와 pw를 확인하고 해당하는 Member 객체를 반환
+	public static Member getMember(String id, String pw) {
 		Connection con = null;
 		PreparedStatement pstmt = null;
 		ResultSet rs = null;
-		String sql = null;
-		boolean flag = false;
-		
+		String sql = "SELECT M_ID, M_NAME, M_PASSWORD, M_EMAIL FROM MEMBER WHERE M_ID = ? AND M_PASSWORD = ?";
+		Member member = null;
 		try {
 			con = pool.getConnection();
-			sql = "SELECT M_NAME FROM MEMBER WHERE M_ID = ? AND M_PASSWORD = ?";
 			pstmt = con.prepareStatement(sql);
 			pstmt.setString(1, id);
 			pstmt.setString(2, pw);
 			rs = pstmt.executeQuery();
-			flag = rs.next();
+			if (rs.next()) {
+				member = new Member(
+					rs.getString("M_ID"),
+					rs.getString("M_NAME"),
+					rs.getString("M_PASSWORD"),
+					rs.getString("M_EMAIL")
+				);
+			}
 		} catch (Exception e) {
 			e.printStackTrace();
 		} finally {
 			pool.freeConnection(con, pstmt, rs);
 		}
-		
-		return flag;
+		return member;
 	}
+
 	
 	//회원가입
-	public static boolean register(String id, String name, String pw, String email) {
+	public static boolean register(Member member) {
 		Connection con = null;
 		PreparedStatement pstmt = null;
 		String sql = null;
@@ -43,10 +50,10 @@ public class MemberDAO {
 			con = pool.getConnection();
 			sql = "INSERT INTO MEMBER(M_ID, M_NAME, M_PASSWORD, M_EMAIL) VALUES(?, ?, ?, ?)";
 			pstmt = con.prepareStatement(sql);
-			pstmt.setString(1, id);
-			pstmt.setString(2, name);
-			pstmt.setString(3, pw);
-			pstmt.setString(4, email);
+			pstmt.setString(1, member.getM_id());
+			pstmt.setString(2, member.getM_name());
+			pstmt.setString(3, member.getM_password());
+			pstmt.setString(4, member.getM_email());
 			int cnt = pstmt.executeUpdate();
 			if (cnt == 1) { flag = true; }
 		} catch (Exception e) {
@@ -81,27 +88,4 @@ public class MemberDAO {
 		return duplicated;
 	}
 	
-	public static String getNameById(String id) {
-		Connection con = null;
-		PreparedStatement pstmt = null;
-		ResultSet rs = null;
-		String sql = null;
-		String name = null;
-		try {
-			con = pool.getConnection();
-			sql = "SELECT M_NAME FROM MEMBER WHERE M_ID = ?";
-			pstmt = con.prepareStatement(sql);
-			pstmt.setString(1, id);
-			rs = pstmt.executeQuery();
-			if (rs.next()) {
-				name = rs.getString("M_NAME");
-			}
-		} catch (Exception e) {
-			e.printStackTrace();
-		} finally {
-			pool.freeConnection(con, pstmt, rs);
-		}
-		
-		return name;
-	}
 }
