@@ -7,13 +7,13 @@ import java.sql.ResultSet;
 import busantravel.db.DBConnectionMgr;
 
 public class MemberDAO {
-	DBConnectionMgr pool;
+	static DBConnectionMgr pool;
 	
 	public MemberDAO() {
 		pool = DBConnectionMgr.getInstance();
 	}
 	
-	public boolean loginCheck(String id, String pw) {
+	public static boolean loginCheck(String id, String pw) {
 		Connection con = null;
 		PreparedStatement pstmt = null;
 		ResultSet rs = null;
@@ -34,6 +34,29 @@ public class MemberDAO {
 			pool.freeConnection(con, pstmt, rs);
 		}
 		
+		return flag;
+	}
+	
+	public static boolean register(String id, String name, String pw, String email) {
+		Connection con = null;
+		PreparedStatement pstmt = null;
+		String sql = null;
+		boolean flag = false;
+		try {
+			con = pool.getConnection();
+			sql = "INSERT MEMBER(M_ID, M_NAME, M_PASSWORD, M_EMAIL) VALUES(?, ?, ?, ?)";
+			pstmt = con.prepareStatement(sql);
+			pstmt.setString(1, id);
+			pstmt.setString(2, name);
+			pstmt.setString(3, pw);
+			pstmt.setString(4, email);
+			int cnt = pstmt.executeUpdate();
+			if (cnt == 1) { flag = true; }
+		} catch (Exception e) {
+			e.printStackTrace();
+		} finally {
+			pool.freeConnection(con, pstmt);
+		}
 		return flag;
 	}
 }
