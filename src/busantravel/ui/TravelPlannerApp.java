@@ -33,7 +33,7 @@ public class TravelPlannerApp {
 
         // 로고 이미지 (BusanHow1 패키지 내 logo.jpg)
         try {
-            ImageIcon originalIcon = new ImageIcon(getClass().getResource("/BusanHow1/logo.jpg"));
+            ImageIcon originalIcon = new ImageIcon(getClass().getResource("/busantravel/ui/logo.jpg"));
             Image originalImage = originalIcon.getImage();
             int targetWidth = 150;
             double aspectRatio = (double) originalImage.getHeight(null) / originalImage.getWidth(null);

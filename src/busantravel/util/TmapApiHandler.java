@@ -5,129 +5,109 @@ import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
 
-import java.io.BufferedReader;
-import java.io.BufferedWriter;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.OutputStream;
-import java.io.OutputStreamWriter;
+import java.io.*;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.util.ArrayList;
+import java.util.List;
 
+/**
+ * SK Tmap 모빌리티 API와의 통신을 처리하는 핸들러 클래스입니다.
+ * <p>
+ * 이 클래스는 자동차 경로안내 API를 호출하여 두 지점 간의 경로 정보를 요청하고,
+ * 그 결과를 파싱하여 요약 정보와 상세 경로 좌표를 제공하는 기능을 담당합니다.
+ * 네트워크 통신에는 {@link HttpURLConnection}을 사용합니다.
+ *
+ * @see TmapRouteResult
+ * @see TmapRouteInfo
+ */
 public class TmapApiHandler {
 
     private static final String TMAP_URL = "https://apis.openapi.sk.com/tmap/routes?version=1";
 
     /**
-     * 출발지와 도착지의 좌표를 이용하여 Tmap 경로안내 API를 호출하고 결과를 반환합니다.
+     * Tmap 경로안내 API를 호출하여 경로 요약 및 상세 좌표를 포함한 전체 결과를 반환합니다.
      *
-     * @param appKey     Tmap API 앱 키
-     * @param startX     출발지 경도(Longitude)
-     * @param startY     출발지 위도(Latitude)
-     * @param endX       도착지 경도(Longitude)
-     * @param endY       도착지 위도(Latitude)
-     * @param startName  출발지 명칭 (URL 인코딩된 상태여야 함)
-     * @param endName    도착지 명칭 (URL 인코딩된 상태여야 함)
-     * @return TmapRouteInfo 객체, 실패 시 null
+     * @return TmapRouteResult 객체, 실패 시 null
      */
-    public TmapRouteInfo getRouteInfo(String appKey, double startX, double startY, double endX, double endY, String startName, String endName) {
+    public TmapRouteResult getRouteInfo(String appKey, double startX, double startY, double endX, double endY, String startName, String endName) {
         HttpURLConnection conn = null;
-
         try {
-            // 요청 본문(JSON) 생성
             String jsonBody = String.format(
                 "{\"startX\":%f,\"startY\":%f,\"endX\":%f,\"endY\":%f,\"startName\":\"%s\",\"endName\":\"%s\"," +
                 "\"reqCoordType\":\"WGS84GEO\",\"resCoordType\":\"WGS84GEO\",\"tollgateFareOption\":16}",
                 startX, startY, endX, endY, startName, endName
             );
-
             URL url = new URL(TMAP_URL);
             conn = (HttpURLConnection) url.openConnection();
-
-            // POST 방식 설정
             conn.setRequestMethod("POST");
-            conn.setDoOutput(true); // POST 요청을 위해 반드시 true로 설정
-            conn.setConnectTimeout(5000);
-            conn.setReadTimeout(5000);
-
-            // 헤더 설정
+            conn.setDoOutput(true);
             conn.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
             conn.setRequestProperty("Accept", "application/json");
             conn.setRequestProperty("appKey", appKey);
-
-            // 요청 본문 전송
-            try (OutputStream os = conn.getOutputStream();
-                 BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(os, "UTF-8"))) {
+            
+            try(OutputStream os = conn.getOutputStream(); BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(os, "UTF-8"))){
                 writer.write(jsonBody);
                 writer.flush();
             }
 
-            // 응답 수신
             if (conn.getResponseCode() == HttpURLConnection.HTTP_OK) {
                 StringBuilder sb = new StringBuilder();
                 try (BufferedReader br = new BufferedReader(new InputStreamReader(conn.getInputStream(), "UTF-8"))) {
                     String line;
-                    while ((line = br.readLine()) != null) {
-                        sb.append(line);
-                    }
+                    while ((line = br.readLine()) != null) { sb.append(line); }
                 }
-                return parseRouteInfo(sb.toString());
+                return parseRouteResult(sb.toString()); // 파싱 메소드 호출
             } else {
-                System.err.println("Tmap API 호출 실패: " + conn.getResponseCode() + " " + conn.getResponseMessage());
-                // 에러 스트림 읽기
-                try (BufferedReader br = new BufferedReader(new InputStreamReader(conn.getErrorStream(), "UTF-8"))) {
-                    String line;
-                    while ((line = br.readLine()) != null) {
-                        System.err.println(line);
-                    }
-                }
                 return null;
             }
-
-        } catch (IOException e) {
-            System.err.println("네트워크 오류가 발생했습니다.");
+        } catch (Exception e) {
             e.printStackTrace();
             return null;
         } finally {
-            if (conn != null) {
-                conn.disconnect();
-            }
+            if (conn != null) conn.disconnect();
         }
     }
 
     /**
-     * Tmap 경로안내 API의 JSON 응답을 파싱하여 TmapRouteInfo 객체로 변환합니다.
-     *
-     * @param jsonResponse API로부터 받은 JSON 형식의 문자열
-     * @return TmapRouteInfo 객체, 파싱 실패 시 null
+     * Tmap 경로안내 API의 JSON 응답을 파싱하여 TmapRouteResult 객체로 변환합니다.
      */
-    private TmapRouteInfo parseRouteInfo(String jsonResponse) {
+    private TmapRouteResult parseRouteResult(String jsonResponse) {
         try {
             JSONParser parser = new JSONParser();
             JSONObject jsonObj = (JSONObject) parser.parse(jsonResponse);
             JSONArray features = (JSONArray) jsonObj.get("features");
 
-            if (features == null || features.isEmpty()) {
-                System.err.println("응답에서 'features'를 찾을 수 없거나 비어있습니다.");
-                return null;
-            }
+            if (features == null || features.isEmpty()) return null;
 
-            JSONObject firstFeature = (JSONObject) features.get(0);
-            JSONObject properties = (JSONObject) firstFeature.get("properties");
+            // 1. 경로 요약 정보 파싱 (첫 번째 feature)
+            JSONObject summaryFeature = (JSONObject) features.get(0);
+            JSONObject summaryProps = (JSONObject) summaryFeature.get("properties");
+            int totalDistance = ((Number) summaryProps.get("totalDistance")).intValue();
+            int totalTime = ((Number) summaryProps.get("totalTime")).intValue();
+            int totalFare = ((Number) summaryProps.get("totalFare")).intValue();
+            int taxiFare = ((Number) summaryProps.get("taxiFare")).intValue();
+            TmapRouteInfo summaryInfo = new TmapRouteInfo(totalDistance, totalTime, totalFare, taxiFare);
             
-            int totalDistance = ((Number) properties.get("totalDistance")).intValue();
-            int totalTime = ((Number) properties.get("totalTime")).intValue();
-            int totalFare = ((Number) properties.get("totalFare")).intValue();
-            int taxiFare = ((Number) properties.get("taxiFare")).intValue();
-
-            return new TmapRouteInfo(totalDistance, totalTime, totalFare, taxiFare);
+            // 2. 상세 경로 좌표 파싱 (LineString 타입의 feature들)
+            List<Coordinate> pathCoordinates = new ArrayList<>();
+            for (Object featureObj : features) {
+                JSONObject feature = (JSONObject) featureObj;
+                JSONObject geometry = (JSONObject) feature.get("geometry");
+                if (geometry.get("type").equals("LineString")) {
+                    JSONArray coordsArray = (JSONArray) geometry.get("coordinates");
+                    for (Object coordObj : coordsArray) {
+                        JSONArray coord = (JSONArray) coordObj;
+                        double longitude = (Double) coord.get(0);
+                        double latitude = (Double) coord.get(1);
+                        pathCoordinates.add(new Coordinate(latitude, longitude));
+                    }
+                }
+            }
+            
+            return new TmapRouteResult(summaryInfo, pathCoordinates);
 
         } catch (ParseException e) {
-            System.err.println("JSON 파싱에 실패했습니다: " + jsonResponse);
-            e.printStackTrace();
-            return null;
-        } catch (Exception e) {
-            System.err.println("데이터 처리 중 예외가 발생했습니다.");
             e.printStackTrace();
             return null;
         }
