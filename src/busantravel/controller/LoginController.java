@@ -6,6 +6,7 @@ import javax.swing.JOptionPane;
 import busantravel.auth.MemberSession;
 import busantravel.service.MemberService;
 import busantravel.ui.LoginDialog;
+import busantravel.model.Member;
 
 public class LoginController {
 	
@@ -24,9 +25,9 @@ public class LoginController {
 	if (id.isEmpty() || pw.isEmpty()) {
 		JOptionPane.showMessageDialog(dialog, "아이디와 비밀번호를 입력해주세요.", "로그인 오류", JOptionPane.WARNING_MESSAGE);
 	} else {
-		if (MemberService.login(id, pw)) {
-			String name = MemberService.getNameById(id);
-			MemberSession.login(id, name);
+		Member member = MemberService.login(id, pw);
+		if (member != null) {
+			MemberSession.login(member.getM_id(), member.getM_name());
             JOptionPane.showMessageDialog(dialog, "로그인 성공!");
             dialog.dispose();
 		} else {
