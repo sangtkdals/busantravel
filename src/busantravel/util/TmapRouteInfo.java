@@ -4,6 +4,7 @@ package busantravel.util;
  * Tmap 경로안내 API의 응답 결과를 저장하는 데이터 모델 클래스입니다.
  * <p>
  * 경로의 총 거리, 총 소요 시간, 통행 요금, 예상 택시 요금 정보를 포함합니다.
+ * 이 객체는 불변(Immutable)으로 설계되었습니다.
  *
  * @see TmapApiHandler
  */

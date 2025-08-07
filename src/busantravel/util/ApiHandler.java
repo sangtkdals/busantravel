@@ -18,6 +18,19 @@ import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
 
+/**
+ * Google Maps Platform의 다양한 API와의 통신을 처리하는 핸들러 클래스입니다.
+ * <p>
+ * 이 클래스는 다음과 같은 기능을 제공합니다:
+ * <ul>
+ *   <li>장소 이름 또는 Place ID를 이용한 상세 정보 조회 (Places API)</li>
+ *   <li>사용자 입력에 대한 장소 자동 완성 목록 제공 (Places API)</li>
+ *   <li>장소 사진 URL 생성 (Places API)</li>
+ *   <li>현재 기기의 위치 정보 추정 (Geolocation API)</li>
+ * </ul>
+ * 모든 네트워크 통신은 자바 표준 라이브러리인 {@link HttpURLConnection}을 사용합니다.
+ *
+ */
 public class ApiHandler {
 
     //================================================================
@@ -285,7 +298,7 @@ public class ApiHandler {
         conn.setConnectTimeout(5000);   
         conn.setReadTimeout(5000);
 
-        //정상 HTTP 응답
+        //정상 HTTP 응답을 받으면
         if (conn.getResponseCode() == HttpURLConnection.HTTP_OK) {
             StringBuilder sb = new StringBuilder();
             try (BufferedReader br = new BufferedReader(new InputStreamReader(conn.getInputStream(), "UTF-8"))) {
