@@ -39,6 +39,7 @@ public class ApiHandler {
 
     /**
      * 장소 이름으로 장소의 상세 정보를 검색합니다.
+     * 부산의 장소가 우선적으로 검색됩니다.
      * @param placeName 검색할 장소 이름
      * @param key Google API 키
      * @return PlaceInfo 객체 (장소 정보)
@@ -107,6 +108,7 @@ public class ApiHandler {
     
     /**
      * 입력된 검색어를 기반으로 장소 자동 완성 예상 목록을 반환합니다.
+     * 검색 지역은 부산으로 제한되어 있습니다.
      * @param input 사용자가 입력한 검색어 (예: "롯데월드")
      * @param key Google API 키
      * @return AutocompletePrediction 객체의 리스트. 실패 시 비어있는 리스트 반환.
@@ -114,10 +116,17 @@ public class ApiHandler {
     public List<AutocompletePrediction> getAutocompletePredictions(String input, String key) {
         try {
             String encodedInput = URLEncoder.encode(input, "UTF-8");
+            
+            // --- 부산 경계 정의 ---
+            String busanBounds = "rectangle:34.98,128.76|35.31,129.29";
+            String encodedBounds = URLEncoder.encode(busanBounds, "UTF-8");
+            
             String apiUrl = "https://maps.googleapis.com/maps/api/place/autocomplete/json" +
                             "?input=" + encodedInput +
                             "&language=ko" +
                             "&components=country:kr" + // 한국 내 결과 우선
+                            "&locationrestriction=" + encodedBounds + // <<--- 위치 제한 추가
+                            "&strictbounds=true" +                     // <<--- 엄격한 제한 활성화
                             "&key=" + key;
 
             String jsonResponse = sendGetRequest(apiUrl);
@@ -159,10 +168,17 @@ public class ApiHandler {
     //================================================================
 
     private String findPlaceId(String placeName, String key) throws Exception {
+    	
+    	// --- 부산 경계 상자 정의 ---
+        String busanBias = "rectangle:34.98,128.76|35.31,129.29";
+        String encodedBias = URLEncoder.encode(busanBias, "UTF-8");
+        
         String apiUrl = "https://maps.googleapis.com/maps/api/place/findplacefromtext/json" +
                         "?input=" + placeName +
                         "&inputtype=textquery" +
                         "&fields=place_id" +
+                        "&language=ko" +
+                        "&locationbias=" + encodedBias + // <<--- 위치 편향
                         "&key=" + key;
         String jsonResponse = sendGetRequest(apiUrl);
         if (jsonResponse == null) return null;

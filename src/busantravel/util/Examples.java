@@ -9,7 +9,7 @@ public class Examples {
         // Google Maps API 관련 설정
         // ========================================================================
         ApiHandler apiHandler = new ApiHandler();
-        String googleApiKey = "AIzaSyCbEjKNhNT9tjRh0KqCil4sUMlF06Dfu5Y"; // <<-- 여기에 실제 Google API 키를 입력하세요.
+        String googleApiKey = "AIzaSyCbEjKNhNT9tjRh0KqCil4sUMlF06Dfu5Y";
         
         // --- 1. 장소 자동 완성 ---
         System.out.println("--- 1. 장소 자동 완성 ---");
