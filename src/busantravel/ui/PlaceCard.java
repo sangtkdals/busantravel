@@ -43,7 +43,7 @@ public class PlaceCard extends JPanel {
         ImageIcon cachedImage = ImageCache.getInstance().getImage(placeName);
         if (cachedImage != null) {
             imageLabel.setIcon(cachedImage);
-        } else if (thumbnail != null && !thumbnail.isEmpty()) {
+        } else if (thumbnail != null && !thumbnail.isEmpty() && thumbnail.startsWith("http")) {
             loadImage(imageLabel, thumbnail, placeName);
         } else {
             new SwingWorker<ImageIcon, Void>() {
@@ -262,6 +262,7 @@ public class PlaceCard extends JPanel {
             infoPanel.add(Box.createVerticalStrut(10));
 
             JLabel mapLabel = new JLabel();
+            mapLabel.setPreferredSize(new Dimension(300, 300));
             infoPanel.add(mapLabel);
 
             // Zoom buttons
@@ -273,19 +274,19 @@ public class PlaceCard extends JPanel {
             zoomPanel.add(zoomOutButton);
             infoPanel.add(zoomPanel);
 
-            updateMap(mapLabel, placeName, currentZoom);
+            updateMap(mapLabel, placeName, currentZoom, mapLabel.getPreferredSize().width, mapLabel.getPreferredSize().height);
 
             zoomInButton.addActionListener(e -> {
                 if (currentZoom < 20) {
                     currentZoom++;
-                    updateMap(mapLabel, placeName, currentZoom);
+                    updateMap(mapLabel, placeName, currentZoom, mapLabel.getPreferredSize().width, mapLabel.getPreferredSize().height);
                 }
             });
 
             zoomOutButton.addActionListener(e -> {
                 if (currentZoom > 1) {
                     currentZoom--;
-                    updateMap(mapLabel, placeName, currentZoom);
+                    updateMap(mapLabel, placeName, currentZoom, mapLabel.getPreferredSize().width, mapLabel.getPreferredSize().height);
                 }
             });
 
@@ -296,7 +297,7 @@ public class PlaceCard extends JPanel {
         detailDialog.setVisible(true);
     }
 
-    private void updateMap(JLabel mapLabel, String placeName, int zoom) {
+    private void updateMap(JLabel mapLabel, String placeName, int zoom, int width, int height) {
         new SwingWorker<ImageIcon, Void>() {
             @Override
             protected ImageIcon doInBackground() throws Exception {
@@ -304,8 +305,11 @@ public class PlaceCard extends JPanel {
                 if (!predictions.isEmpty()) {
                     PlaceInfo placeInfo = apiHandler.getPlaceDetailsById(predictions.get(0).getPlaceId(), API_KEY);
                     if (placeInfo != null) {
-                        String mapUrl = apiHandler.getStaticMapUrl(placeInfo.getLatitude(), placeInfo.getLongitude(), 300, 300, zoom, API_KEY);
-                        return new ImageIcon(ImageIO.read(new URL(mapUrl)));
+                        String staticMapUrl = apiHandler.getStaticMapUrl(placeInfo.getLatitude(), placeInfo.getLongitude(), zoom, width, height, API_KEY);
+                        Image image = ImageIO.read(new URL(staticMapUrl));
+                        if (image != null) {
+                            return new ImageIcon(image);
+                        }
                     }
                 }
                 return null;
@@ -317,9 +321,13 @@ public class PlaceCard extends JPanel {
                     ImageIcon imageIcon = get();
                     if (imageIcon != null) {
                         mapLabel.setIcon(imageIcon);
+                        mapLabel.setText(null);
+                    } else {
+                        mapLabel.setText("지도를 불러올 수 없습니다.");
                     }
                 } catch (Exception e) {
                     e.printStackTrace();
+                    mapLabel.setText("지도 로드 중 오류 발생");
                 }
             }
         }.execute();

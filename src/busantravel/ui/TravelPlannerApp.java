@@ -12,14 +12,22 @@ public class TravelPlannerApp {
     private JPanel navigationPanel;
     private JLabel currentTitleLabel;
     private JLabel logoLabel;
+    private JTextField searchField; // 검색 필드 추가
+    private JButton searchButton; // 검색 버튼 추가
+    private JPanel searchAndAuthPanel; // 검색 및 인증 패널
 
     private String currentTab = "home";
+    private HomePanel homePanel;
+    private SchedulePanel schedulePanel;
 
     public static void main(String[] args) {
         SwingUtilities.invokeLater(() -> new TravelPlannerApp().initialize());
     }
 
     public void initialize() {
+        // 패널들 미리 생성
+        homePanel = new HomePanel(frame);
+        schedulePanel = new SchedulePanel(frame);
         frame = new JFrame("부산 여행 플래너");
         frame.setSize(1000, 700);
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
@@ -85,7 +93,34 @@ public class TravelPlannerApp {
 
         authButtonsPanel.add(loginButton);
         authButtonsPanel.add(signUpButton);
-        topAreaPanel.add(authButtonsPanel, BorderLayout.EAST);
+
+        // 검색 UI (상단 우측)
+        searchField = new JTextField(15); // 필드 변수 사용
+        searchButton = new JButton("검색"); // 필드 변수 사용
+        searchButton.setPreferredSize(new Dimension(70, 25));
+        searchButton.setForeground(Color.WHITE);
+        searchButton.setBackground(new Color(180, 90, 70));
+        searchButton.setFocusPainted(false);
+        searchButton.setBorderPainted(false);
+        searchButton.setFont(new Font("맑은 고딕", Font.BOLD, 11));
+
+        searchAndAuthPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 10));
+        searchAndAuthPanel.setBackground(Color.WHITE);
+        searchAndAuthPanel.add(searchField);
+        searchAndAuthPanel.add(searchButton);
+        searchAndAuthPanel.add(authButtonsPanel); // 기존 로그인/회원가입 버튼 패널 추가
+
+        // 검색 버튼 액션 리스너
+        searchButton.addActionListener(e -> {
+            String query = searchField.getText();
+            homePanel.performSearch(query.trim());
+            currentTab = "home"; // 검색 후 홈 탭으로 이동
+            updateContent(); // 홈 탭으로 전환
+            updateTopPanelTitle();
+            updateNavButtonStyles();
+        });
+
+        topAreaPanel.add(searchAndAuthPanel, BorderLayout.EAST);
 
         mainPanel.add(topAreaPanel, BorderLayout.NORTH);
 
@@ -154,12 +189,18 @@ public class TravelPlannerApp {
 
     private void updateContent() {
         contentPanel.removeAll();
+        
+        // 탭에 따라 검색창 보이기/숨기기
+        boolean isHomeTab = "home".equals(currentTab);
+        searchField.setVisible(isHomeTab);
+        searchButton.setVisible(isHomeTab);
+        
         switch (currentTab) {
             case "home":
-                contentPanel.add(new HomePanel(frame), BorderLayout.CENTER);
+                contentPanel.add(homePanel, BorderLayout.CENTER);
                 break;
             case "schedule":
-                contentPanel.add(new SchedulePanel(frame), BorderLayout.CENTER);
+                contentPanel.add(schedulePanel, BorderLayout.CENTER);
                 break;
             case "saved":
                 contentPanel.add(createPlaceholderPanel("저장된 장소 화면 (추후 구현)"), BorderLayout.CENTER);
