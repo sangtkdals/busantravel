@@ -112,16 +112,7 @@ public class PlaceDAO {
         ResultSet rs = null;
 
         String tableName = getTableName(category);
-        String placeColumnName = getPlaceColumnName(category);
-        String introColumnName = getIntroColumnName(category);
-        String thumColumnName = getThumColumnName(category);
-        String sql;
-        if (thumColumnName != null) {
-            sql = "SELECT " + placeColumnName + ", " + introColumnName + ", " + thumColumnName + " FROM " + tableName + " WHERE " + placeColumnName + " = ?";
-        } else {
-            sql = "SELECT " + placeColumnName + ", " + introColumnName + " FROM " + tableName + " WHERE " + placeColumnName + " = ?";
-        }
-
+        String sql = "SELECT * FROM " + tableName + " WHERE " + getPlaceColumnName(category) + " = ?";
 
         try {
             con = pool.getConnection();
@@ -130,12 +121,29 @@ public class PlaceDAO {
             rs = pstmt.executeQuery();
 
             if (rs.next()) {
-                String thum = thumColumnName != null ? rs.getString(thumColumnName) : "";
-                placeDetailInfo = new PlaceDetailInfo(
-                        rs.getString(placeColumnName),
-                        rs.getString(introColumnName),
-                        thum
-                );
+                if ("tourist".equals(tableName)) {
+                    placeDetailInfo = new PlaceDetailInfo(
+                            rs.getString("t_place"),
+                            rs.getString("t_intro"),
+                            rs.getString("t_thum"),
+                            rs.getString("t_tra"),
+                            rs.getString("t_rest"),
+                            rs.getString("t_addr")
+                    );
+                } else {
+                    String placeColumnName = getPlaceColumnName(category);
+                    String introColumnName = getIntroColumnName(category);
+                    String thumColumnName = getThumColumnName(category);
+                    String thum = thumColumnName != null ? rs.getString(thumColumnName) : "";
+                    placeDetailInfo = new PlaceDetailInfo(
+                            rs.getString(placeColumnName),
+                            rs.getString(introColumnName),
+                            thum,
+                            "",
+                            "",
+                            ""
+                    );
+                }
             }
         } catch (Exception e) {
             e.printStackTrace();

@@ -3,6 +3,7 @@ package busantravel.ui;
 import busantravel.dao.PlaceDAO;
 import busantravel.util.ApiHandler;
 import busantravel.util.AutocompletePrediction;
+import busantravel.util.ImageCache;
 import busantravel.util.PlaceInfo;
 
 import javax.imageio.ImageIO;
@@ -16,6 +17,7 @@ import java.util.List;
 public class PlaceCard extends JPanel {
     private PlaceDAO placeDAO;
     private ApiHandler apiHandler;
+    private int currentZoom = 14;
     private static final String API_KEY = "AIzaSyCbEjKNhNT9tjRh0KqCil4sUMlF06Dfu5Y";
 
     public PlaceCard(JFrame frame, String placeName, String category, String thumbnail) {
@@ -38,27 +40,32 @@ public class PlaceCard extends JPanel {
         imageLabel.setHorizontalAlignment(SwingConstants.CENTER);
         imageLabel.setVerticalAlignment(SwingConstants.CENTER);
 
-        if (thumbnail != null && !thumbnail.isEmpty()) {
-            loadImage(imageLabel, thumbnail);
+        ImageIcon cachedImage = ImageCache.getInstance().getImage(placeName);
+        if (cachedImage != null) {
+            imageLabel.setIcon(cachedImage);
+        } else if (thumbnail != null && !thumbnail.isEmpty()) {
+            loadImage(imageLabel, thumbnail, placeName);
         } else {
-                new SwingWorker<ImageIcon, Void>() {
-                    @Override
-                    protected ImageIcon doInBackground() throws Exception {
-                        List<AutocompletePrediction> predictions = apiHandler.getAutocompletePredictions(placeName, API_KEY);
-                        if (!predictions.isEmpty()) {
-                            String placeId = predictions.get(0).getPlaceId();
-                            PlaceInfo placeInfo = apiHandler.getPlaceDetailsById(placeId, API_KEY);
-                            if (placeInfo != null && placeInfo.getPhotoReference() != null) {
-                                String photoReference = placeInfo.getPhotoReference();
-                                String imageUrl = apiHandler.getPhotoUrl(photoReference, 400, API_KEY);
-                                Image image = ImageIO.read(new URL(imageUrl));
-                                if (image != null) {
-                                    return new ImageIcon(image);
-                                }
+            new SwingWorker<ImageIcon, Void>() {
+                @Override
+                protected ImageIcon doInBackground() throws Exception {
+                    List<AutocompletePrediction> predictions = apiHandler.getAutocompletePredictions(placeName, API_KEY);
+                    if (!predictions.isEmpty()) {
+                        String placeId = predictions.get(0).getPlaceId();
+                        PlaceInfo placeInfo = apiHandler.getPlaceDetailsById(placeId, API_KEY);
+                        if (placeInfo != null && placeInfo.getPhotoReference() != null) {
+                            String photoReference = placeInfo.getPhotoReference();
+                            String imageUrl = apiHandler.getPhotoUrl(photoReference, 400, API_KEY);
+                            Image image = ImageIO.read(new URL(imageUrl));
+                            if (image != null) {
+                                ImageIcon imageIcon = new ImageIcon(image);
+                                ImageCache.getInstance().putImage(placeName, imageIcon);
+                                return imageIcon;
                             }
                         }
-                        return null;
                     }
+                    return null;
+                }
 
                 @Override
                 protected void done() {
@@ -103,9 +110,12 @@ public class PlaceCard extends JPanel {
 
     private void showPlaceDetailDialog(JFrame frame, String placeName, String category) {
         JDialog detailDialog = new JDialog(frame, placeName + " 상세 정보", true);
-        detailDialog.setSize(600, 450);
+        detailDialog.setSize(900, 800);
         detailDialog.setLocationRelativeTo(frame);
         detailDialog.setLayout(new BorderLayout());
+
+        JPanel mainPanel = new JPanel(new BorderLayout());
+        mainPanel.setBackground(Color.WHITE);
 
         JPanel detailPanel = new JPanel();
         detailPanel.setLayout(new BoxLayout(detailPanel, BoxLayout.Y_AXIS));
@@ -137,14 +147,12 @@ public class PlaceCard extends JPanel {
                 Image originalDetailImage = detailImageIcon.getImage();
                 int imgWidth = originalDetailImage.getWidth(null);
                 int imgHeight = originalDetailImage.getHeight(null);
-                int targetWidth = detailImageLabel.getPreferredSize().width;
-                int targetHeight = detailImageLabel.getPreferredSize().height;
-                if (imgWidth > 0 && imgHeight > 0) {
-                    double scaleFactor = Math.min((double) targetWidth / imgWidth, (double) targetHeight / imgHeight);
-                    Image scaledDetailImage = originalDetailImage.getScaledInstance((int) (imgWidth * scaleFactor), (int) (imgHeight * scaleFactor), Image.SCALE_SMOOTH);
-                    detailImageLabel.setIcon(new ImageIcon(scaledDetailImage));
-                    detailImageLabel.setText(null);
-                }
+                double scaleFactor = (double) 300 / imgHeight;
+                Image scaledDetailImage = originalDetailImage.getScaledInstance((int) (imgWidth * scaleFactor), 300, Image.SCALE_SMOOTH);
+                detailImageLabel.setIcon(new ImageIcon(scaledDetailImage));
+                detailImageLabel.setText(null);
+            } else if (detailInfo.getImagePath() != null && !detailInfo.getImagePath().isEmpty()) {
+                loadImage(detailImageLabel, detailInfo.getImagePath(), placeName);
             } else {
                 detailImageLabel.setText("이미지 로딩 중...");
                 new SwingWorker<ImageIcon, Void>() {
@@ -175,8 +183,8 @@ public class PlaceCard extends JPanel {
                                 int targetWidth = detailImageLabel.getPreferredSize().width;
                                 int targetHeight = detailImageLabel.getPreferredSize().height;
                                 if (imgWidth > 0 && imgHeight > 0) {
-                                    double scaleFactor = Math.min((double) targetWidth / imgWidth, (double) targetHeight / imgHeight);
-                                    Image scaledDetailImage = originalDetailImage.getScaledInstance((int) (imgWidth * scaleFactor), (int) (imgHeight * scaleFactor), Image.SCALE_SMOOTH);
+                                    double scaleFactor = (double) 300 / imgHeight;
+                                    Image scaledDetailImage = originalDetailImage.getScaledInstance((int) (imgWidth * scaleFactor), 300, Image.SCALE_SMOOTH);
                                     detailImageLabel.setIcon(new ImageIcon(scaledDetailImage));
                                     detailImageLabel.setText(null);
                                 }
@@ -233,22 +241,111 @@ public class PlaceCard extends JPanel {
         detailPanel.add(Box.createVerticalStrut(25));
         detailPanel.add(saveBtn);
 
-        detailDialog.add(detailPanel, BorderLayout.CENTER);
+        mainPanel.add(detailPanel, BorderLayout.CENTER);
+
+        if ("관광지".equals(category) && detailInfo != null) {
+            JPanel infoPanel = new JPanel();
+            infoPanel.setLayout(new BoxLayout(infoPanel, BoxLayout.Y_AXIS));
+            infoPanel.setBackground(Color.WHITE);
+            infoPanel.setBorder(BorderFactory.createEmptyBorder(20, 0, 20, 20));
+
+            JLabel traLabel = new JLabel("<html><body style='width: 200px'>교통 정보: " + detailInfo.getTransportation() + "</body></html>");
+            JLabel restLabel = new JLabel("휴무일: " + detailInfo.getRestDay());
+            JLabel addrLabel = new JLabel("<html><body style='width: 200px'>주소: " + detailInfo.getAddress() + "</body></html>");
+
+            infoPanel.add(traLabel);
+            infoPanel.add(Box.createVerticalStrut(10));
+            infoPanel.add(restLabel);
+            infoPanel.add(Box.createVerticalStrut(10));
+            infoPanel.add(addrLabel);
+
+            infoPanel.add(Box.createVerticalStrut(10));
+
+            JLabel mapLabel = new JLabel();
+            infoPanel.add(mapLabel);
+
+            // Zoom buttons
+            JButton zoomInButton = new JButton("+");
+            JButton zoomOutButton = new JButton("-");
+            JPanel zoomPanel = new JPanel(new FlowLayout(FlowLayout.CENTER));
+            zoomPanel.setBackground(Color.WHITE);
+            zoomPanel.add(zoomInButton);
+            zoomPanel.add(zoomOutButton);
+            infoPanel.add(zoomPanel);
+
+            updateMap(mapLabel, placeName, currentZoom);
+
+            zoomInButton.addActionListener(e -> {
+                if (currentZoom < 20) {
+                    currentZoom++;
+                    updateMap(mapLabel, placeName, currentZoom);
+                }
+            });
+
+            zoomOutButton.addActionListener(e -> {
+                if (currentZoom > 1) {
+                    currentZoom--;
+                    updateMap(mapLabel, placeName, currentZoom);
+                }
+            });
+
+            mainPanel.add(infoPanel, BorderLayout.EAST);
+        }
+
+        detailDialog.add(mainPanel, BorderLayout.CENTER);
         detailDialog.setVisible(true);
     }
 
-    private void loadImage(JLabel label, String imagePath) {
+    private void updateMap(JLabel mapLabel, String placeName, int zoom) {
         new SwingWorker<ImageIcon, Void>() {
             @Override
             protected ImageIcon doInBackground() throws Exception {
-                URL url = new URL(imagePath);
-                return new ImageIcon(ImageIO.read(url));
+                List<AutocompletePrediction> predictions = apiHandler.getAutocompletePredictions(placeName, API_KEY);
+                if (!predictions.isEmpty()) {
+                    PlaceInfo placeInfo = apiHandler.getPlaceDetailsById(predictions.get(0).getPlaceId(), API_KEY);
+                    if (placeInfo != null) {
+                        String mapUrl = apiHandler.getStaticMapUrl(placeInfo.getLatitude(), placeInfo.getLongitude(), 300, 300, zoom, API_KEY);
+                        return new ImageIcon(ImageIO.read(new URL(mapUrl)));
+                    }
+                }
+                return null;
             }
 
             @Override
             protected void done() {
                 try {
-                    label.setIcon(get());
+                    ImageIcon imageIcon = get();
+                    if (imageIcon != null) {
+                        mapLabel.setIcon(imageIcon);
+                    }
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+        }.execute();
+    }
+
+    private void loadImage(JLabel label, String imagePath, String placeName) {
+        new SwingWorker<ImageIcon, Void>() {
+            @Override
+            protected ImageIcon doInBackground() throws Exception {
+                URL url = new URL(imagePath);
+                Image image = ImageIO.read(url);
+                if (image != null) {
+                    ImageIcon imageIcon = new ImageIcon(image);
+                    ImageCache.getInstance().putImage(placeName, imageIcon);
+                    return imageIcon;
+                }
+                return null;
+            }
+
+            @Override
+            protected void done() {
+                try {
+                    ImageIcon imageIcon = get();
+                    if (imageIcon != null) {
+                        label.setIcon(imageIcon);
+                    }
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
