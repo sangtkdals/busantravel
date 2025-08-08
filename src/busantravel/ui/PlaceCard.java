@@ -5,12 +5,14 @@ import busantravel.util.ApiHandler;
 import busantravel.util.AutocompletePrediction;
 import busantravel.util.ImageCache;
 import busantravel.util.PlaceInfo;
+import busantravel.util.PlaceReview;
 
 import javax.imageio.ImageIO;
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.awt.event.ActionListener;
 import java.net.URL;
 import java.util.List;
 
@@ -110,7 +112,7 @@ public class PlaceCard extends JPanel {
 
     private void showPlaceDetailDialog(JFrame frame, String placeName, String category) {
         JDialog detailDialog = new JDialog(frame, placeName + " 상세 정보", true);
-        detailDialog.setSize(900, 800);
+        detailDialog.setSize(1200, 800);
         detailDialog.setLocationRelativeTo(frame);
         detailDialog.setLayout(new BorderLayout());
 
@@ -274,21 +276,109 @@ public class PlaceCard extends JPanel {
             zoomPanel.add(zoomOutButton);
             infoPanel.add(zoomPanel);
 
-            updateMap(mapLabel, placeName, currentZoom, mapLabel.getPreferredSize().width, mapLabel.getPreferredSize().height);
+            // Reviews Panel
+            JPanel reviewsContainer = new JPanel(new BorderLayout());
+            reviewsContainer.setBackground(Color.WHITE);
+            reviewsContainer.setBorder(BorderFactory.createTitledBorder("리뷰"));
+            
+            JPanel reviewsPanel = new JPanel();
+            reviewsPanel.setLayout(new BoxLayout(reviewsPanel, BoxLayout.Y_AXIS));
+            reviewsPanel.setBackground(Color.WHITE);
+            
+            JScrollPane reviewScrollPane = new JScrollPane(reviewsPanel);
+            reviewScrollPane.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
+            reviewScrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
+            reviewScrollPane.setBorder(null);
+            reviewsContainer.add(reviewScrollPane, BorderLayout.CENTER);
+            
+            infoPanel.add(Box.createVerticalStrut(10));
+            infoPanel.add(reviewsContainer);
 
-            zoomInButton.addActionListener(e -> {
-                if (currentZoom < 20) {
-                    currentZoom++;
-                    updateMap(mapLabel, placeName, currentZoom, mapLabel.getPreferredSize().width, mapLabel.getPreferredSize().height);
-                }
-            });
 
-            zoomOutButton.addActionListener(e -> {
-                if (currentZoom > 1) {
-                    currentZoom--;
-                    updateMap(mapLabel, placeName, currentZoom, mapLabel.getPreferredSize().width, mapLabel.getPreferredSize().height);
+            // SwingWorker to fetch PlaceInfo (which includes map and reviews)
+            new SwingWorker<PlaceInfo, Void>() {
+                @Override
+                protected PlaceInfo doInBackground() throws Exception {
+                    List<AutocompletePrediction> predictions = apiHandler.getAutocompletePredictions(placeName, API_KEY);
+                    if (!predictions.isEmpty()) {
+                        return apiHandler.getPlaceDetailsById(predictions.get(0).getPlaceId(), API_KEY);
+                    }
+                    return null;
                 }
-            });
+
+                @Override
+                protected void done() {
+                    try {
+                        PlaceInfo placeInfo = get();
+                        if (placeInfo != null) {
+                            // Update Map
+                            updateMap(mapLabel, placeInfo, currentZoom, mapLabel.getPreferredSize().width, mapLabel.getPreferredSize().height);
+                            
+                            // Update Reviews
+                            reviewsPanel.removeAll();
+                            if (placeInfo.getReviews() != null && !placeInfo.getReviews().isEmpty()) {
+                                for (PlaceReview review : placeInfo.getReviews()) {
+                                    JPanel reviewPanel = new JPanel();
+                                    reviewPanel.setLayout(new BoxLayout(reviewPanel, BoxLayout.Y_AXIS));
+                                    reviewPanel.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
+                                    reviewPanel.setBackground(new Color(248, 248, 248));
+                                    
+                                    JLabel authorLabel = new JLabel(review.getAuthorName() + " (" + review.getRating() + "/5)");
+                                    authorLabel.setFont(new Font("맑은 고딕", Font.BOLD, 12));
+                                    
+                                    JTextArea reviewText = new JTextArea(review.getText());
+                                    reviewText.setLineWrap(true);
+                                    reviewText.setWrapStyleWord(true);
+                                    reviewText.setEditable(false);
+                                    reviewText.setBackground(reviewPanel.getBackground());
+                                    reviewText.setFont(new Font("맑은 고딕", Font.PLAIN, 11));
+                                    
+                                    reviewPanel.add(authorLabel);
+                                    reviewPanel.add(Box.createVerticalStrut(3));
+                                    reviewPanel.add(reviewText);
+                                    
+                                    reviewsPanel.add(reviewPanel);
+                                    reviewsPanel.add(Box.createVerticalStrut(5));
+                                }
+                            } else {
+                                reviewsPanel.add(new JLabel("리뷰가 없습니다."));
+                            }
+                            reviewsPanel.revalidate();
+                            reviewsPanel.repaint();
+
+                            // Add ActionListeners for zoom buttons here, after placeInfo is fetched
+                            for(ActionListener al : zoomInButton.getActionListeners()) { zoomInButton.removeActionListener(al); }
+                            for(ActionListener al : zoomOutButton.getActionListeners()) { zoomOutButton.removeActionListener(al); }
+
+                            zoomInButton.addActionListener(e -> {
+                                if (currentZoom < 20) {
+                                    currentZoom++;
+                                    updateMap(mapLabel, placeInfo, currentZoom, mapLabel.getPreferredSize().width, mapLabel.getPreferredSize().height);
+                                }
+                            });
+
+                            zoomOutButton.addActionListener(e -> {
+                                if (currentZoom > 1) {
+                                    currentZoom--;
+                                    updateMap(mapLabel, placeInfo, currentZoom, mapLabel.getPreferredSize().width, mapLabel.getPreferredSize().height);
+                                }
+                            });
+
+                        } else {
+                            mapLabel.setText("지도 정보를 가져올 수 없습니다.");
+                            reviewsPanel.add(new JLabel("리뷰 정보를 가져올 수 없습니다."));
+                            reviewsPanel.revalidate();
+                            reviewsPanel.repaint();
+                        }
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                        mapLabel.setText("정보 로드 중 오류 발생");
+                        reviewsPanel.add(new JLabel("정보 로드 중 오류 발생"));
+                        reviewsPanel.revalidate();
+                        reviewsPanel.repaint();
+                    }
+                }
+            }.execute();
 
             mainPanel.add(infoPanel, BorderLayout.EAST);
         }
@@ -297,19 +387,15 @@ public class PlaceCard extends JPanel {
         detailDialog.setVisible(true);
     }
 
-    private void updateMap(JLabel mapLabel, String placeName, int zoom, int width, int height) {
+    private void updateMap(JLabel mapLabel, PlaceInfo placeInfo, int zoom, int width, int height) {
         new SwingWorker<ImageIcon, Void>() {
             @Override
             protected ImageIcon doInBackground() throws Exception {
-                List<AutocompletePrediction> predictions = apiHandler.getAutocompletePredictions(placeName, API_KEY);
-                if (!predictions.isEmpty()) {
-                    PlaceInfo placeInfo = apiHandler.getPlaceDetailsById(predictions.get(0).getPlaceId(), API_KEY);
-                    if (placeInfo != null) {
-                        String staticMapUrl = apiHandler.getStaticMapUrl(placeInfo.getLatitude(), placeInfo.getLongitude(), zoom, width, height, API_KEY);
-                        Image image = ImageIO.read(new URL(staticMapUrl));
-                        if (image != null) {
-                            return new ImageIcon(image);
-                        }
+                if (placeInfo != null) {
+                    String staticMapUrl = apiHandler.getStaticMapUrl(placeInfo.getLatitude(), placeInfo.getLongitude(), zoom, width, height, API_KEY);
+                    Image image = ImageIO.read(new URL(staticMapUrl));
+                    if (image != null) {
+                        return new ImageIcon(image);
                     }
                 }
                 return null;
